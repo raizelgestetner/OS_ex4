@@ -11,7 +11,7 @@ typedef int word_t;
 #define OFFSET_WIDTH 4
 // page/frame size in words
 // in this implementation this is also the number of entries in a table
-#define PAGE_SIZE (1LL << OFFSET_WIDTH)
+#define PAGE_SIZE (1LL << OFFSET_WIDTH) // 2^OFFSET_WIDTH
 
 // number of bits in a physical address
 #define PHYSICAL_ADDRESS_WIDTH 10
@@ -21,7 +21,7 @@ typedef int word_t;
 // number of bits in a virtual address
 #define VIRTUAL_ADDRESS_WIDTH 20
 // virtual memory size in words
-#define VIRTUAL_MEMORY_SIZE (1LL << VIRTUAL_ADDRESS_WIDTH)
+#define VIRTUAL_MEMORY_SIZE (1LL << VIRTUAL_ADDRESS_WIDTH) //2 ^ VIRTUAL_ADDRESS_WIDTH
 
 // number of frames in the RAM
 #define NUM_FRAMES (RAM_SIZE / PAGE_SIZE)
