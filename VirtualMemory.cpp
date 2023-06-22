@@ -5,9 +5,10 @@
 #include "VirtualMemory.h"
 #include "PhysicalMemory.h"
 #include "MemoryConstants.h"
+//#include "YaaraTest/YaaraConstants.h"
 
 ///////function declarations/////////
-void remove_hierarchy(uint64_t frame_index);
+void remove_hierarchy(uint64_t frame_index, int frameType[]);
 void initialize_frame(uint64_t frame_idx);
 //////////////////////////////////////
 
@@ -39,7 +40,7 @@ uint64_t readBits(uint64_t number, uint64_t start, uint64_t end) {
 
 
 
-void findEmptyTable(uint64_t &frame_index, uint64_t &max_frame_id, int current_addr, int *frameType) {
+void findEmptyTable(uint64_t &frame_index, uint64_t &max_frame_id, int current_addr, int frameType[]) {
 
   // find free space to load from swap
   frame_index = 0;
@@ -73,7 +74,7 @@ uint64_t abs_minus_64(uint64_t a,uint64_t b){
 }
 
 uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t virtualAddress,
-                        int* frameType, long int* frames_array) {
+                        int frameType[], long int frames_array[]) {
   // We want to found new place to write the tables
   // Try to find empty table
   uint64_t frame_index;
@@ -81,7 +82,7 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
   findEmptyTable(frame_index, max_frame_id, current_addr, frameType);
 
   if (frame_index){
-      remove_hierarchy (frame_index);
+      remove_hierarchy (frame_index, frameType);
     }
   else if (max_frame_id+1 < NUM_FRAMES) {
       max_frame_id ++;
@@ -119,7 +120,7 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
       if(frameType[frame_index] == 2){ // If frame we want to evict is data, we'll save it into the disk.(It should be!)
           uint64_t evictedPageIndex = frames_array[frame_index];
           PMevict(frame_index, evictedPageIndex);
-          remove_hierarchy(frame_index);
+          remove_hierarchy(frame_index, frameType);
           frames_array[frame_index] = -1;
         }
       else if(frameType[frame_index] == 1){
@@ -174,14 +175,24 @@ void remove_hierarchy(uint64_t frame_index, int frameType[]){
     }
 }
 
-void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, int* frameType, long int* frames_array) {
+// Function to concatenate two bits into a uint64_t variable
+uint64_t concatenateBits(uint64_t a, uint64_t b) {
+  uint64_t result = (a << 1) | b;
+  return result;
+}
+
+void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, int frameType[], long int frames_array[]) {
 
 //  word_t index_of_data;
 //  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
 //  PMread(pageIndex * PAGE_SIZE + offset ,&index_of_data);
 //  frames_array[index_of_data] = pageIndex;
 
-  if (depth == TABLES_DEPTH-1) {
+  // we already been here...
+  if (frameType[pageIndex] != 0)
+    return;
+
+  if (depth == TABLES_DEPTH) {
       frameType[pageIndex] = 1;
       frames_array[pageIndex] = virtualAddress;
       return;
@@ -191,11 +202,12 @@ void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, in
     {
       word_t tmp;
       PMread(pageIndex * PAGE_SIZE + j ,&tmp);
-      recursive_travel(tmp, virtualAddress, ++depth, frameType, frames_array);
+      if (tmp != 0)
+        recursive_travel(tmp, concatenateBits(virtualAddress, j), ++depth, frameType, frames_array);
     }
 }
 
-void build_database(int* frameType, long int* frames_array, uint64_t virtualAddress) {
+void build_database(int frameType[], long int frames_array[], uint64_t virtualAddress) {
 
   for (int i = 0; i < NUM_FRAMES; ++i)
     {
@@ -204,14 +216,14 @@ void build_database(int* frameType, long int* frames_array, uint64_t virtualAddr
     }
 
   frameType[0] = 1;
-  frames_array[0] = 0;
+  frames_array[0] = -1;
 
   for (int j = 0; j < PAGE_SIZE; j++)
     {
       word_t tmp;
       PMread(j ,&tmp);
       if (tmp != 0)
-        recursive_travel(tmp, virtualAddress, 1, frameType, frames_array);
+        recursive_travel(tmp, concatenateBits(0, j), 1, frameType, frames_array);
     }
 }
 
