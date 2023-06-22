@@ -218,15 +218,24 @@ void remove_hierarchy(uint64_t frame_index, int frameType[]){
     }
 }
 
-// Function to concatenate two bits into a uint64_t variable
-uint64_t concatenateBits(uint64_t a, uint64_t b) {
-  uint64_t result = (a << 1) | b;
-  return result;
+uint64_t concatenateBits(uint64_t a, uint64_t b, int bits_length) {
+  // Create a bitmask with the desired number of bits
+  uint64_t bitmask = (1ULL << bits_length) - 1;
+
+  // Truncate the input numbers to the specified number of bits
+  a &= bitmask;
+  b &= bitmask;
+
+  // Shift the bits of 'a' to the left by 'bits_length' positions
+  a <<= bits_length;
+
+  // Combine the truncated 'a' and 'b' using bitwise OR
+  return a | b;
 }
 
 void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, int frameType[], long int frames_array[]) {
 
-  std::cout << "IN RECUTSI"
+//  std::cout << "IN RECUTSI" << std::endl;
 //  word_t index_of_data;
 //  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
 //  PMread(pageIndex * PAGE_SIZE + offset ,&index_of_data);
@@ -241,13 +250,15 @@ void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, in
       frames_array[pageIndex] = virtualAddress;
       return;
   }
+//  std::cout << "depth: " << depth << std::endl;
   frameType[pageIndex] = 1;
+  depth += 1;
   for (int j = 0; j < PAGE_SIZE; j++)
     {
       word_t tmp;
       PMread(pageIndex * PAGE_SIZE + j ,&tmp);
       if (tmp != 0)
-        recursive_travel(tmp, concatenateBits(virtualAddress, j), ++depth, frameType, frames_array);
+        recursive_travel(tmp, concatenateBits(virtualAddress, j, OFFSET_WIDTH), depth, frameType, frames_array);
     }
 }
 
@@ -267,7 +278,7 @@ void build_database(int frameType[], long int frames_array[], uint64_t virtualAd
       word_t tmp;
       PMread(j ,&tmp);
       if (tmp != 0)
-        recursive_travel(tmp, concatenateBits(0, j), 1, frameType, frames_array);
+        recursive_travel(tmp, concatenateBits(0, j, OFFSET_WIDTH), 1, frameType, frames_array);
     }
 }
 
