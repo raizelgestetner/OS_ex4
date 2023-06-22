@@ -227,14 +227,18 @@ int VMwrite(uint64_t virtualAddress, word_t value){
 
   int addr = 0;
   int tmp_addr = 0;
+
+  int bits_length_start = 0;
+  int bits_length_end = BITS_OF_PT_ADDR - SPAIR_BIT_OF_PT_ADDR;
+
   for(int i = 0; i < DEPTH_OF_PT_TREE-1; i++)
     {
-      int bits_length = BITS_OF_PT_ADDR;
-      if (!i)
-        bits_length -= SPAIR_BIT_OF_PT_ADDR;
 
-      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
-      std::cout << "bits_length: " << bits_length << ", at i: " << i << std::endl;
+//      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
+      uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//      std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl;
+      bits_length_start = bits_length_end;
+      bits_length_end += BITS_OF_PT_ADDR;
       PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
 
       if (!tmp_addr) {
@@ -246,11 +250,12 @@ int VMwrite(uint64_t virtualAddress, word_t value){
           addr = tmp_addr;
         }
 
-      std::cout << "in table " << i << ", offset: " << offset << ". we write" << " addr: " << addr << ", depth: " << i << std::endl;
+//      std::cout << "in table " << i << ", offset: " << offset << ". we write" << " addr: " << addr << ", depth: " << i << std::endl;
     }
 
-  uint64_t offset = readBits(virtualAddress, (DEPTH_OF_PT_TREE-1) * BITS_OF_PT_ADDR, (DEPTH_OF_PT_TREE) * BITS_OF_PT_ADDR);
-  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (DEPTH_OF_PT_TREE-1) << std::endl;
+  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//  std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl;
+//  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (DEPTH_OF_PT_TREE-1) << ", offset: " << offset << std::endl;
 //  uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
 
   PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
@@ -258,19 +263,19 @@ int VMwrite(uint64_t virtualAddress, word_t value){
   if (!tmp_addr) {
       // load page to ram
       addr = handlePageLoad(addr, offset, true, virtualAddress);
-      std::cout << "data find frame addr: " << addr << std::endl;
+//      std::cout << "data find frame addr: " << addr << std::endl;
     }
   else
     {
       addr = tmp_addr;
     }
-  std::cout << "in table " << 3 << ", offset: " << offset << ". we write" << " data addr: " << addr << ", depth: " << 4 << std::endl;
+//  std::cout << "in table " << 3 << ", offset: " << offset << ". we write" << " data addr: " << addr << ", depth: " << 4 << std::endl;
 
   uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
   PMwrite(addr * PAGE_SIZE + d ,value);
 
 
-  std::cout << "data to: " << addr << ", offset: " << d << ", value: " << value << ", depth: " << 4 << std::endl;
+//  std::cout << "data to: " << addr << ", offset: " << d << ", value: " << value << ", depth: " << 4 << std::endl;
 
   return 1;
 }
@@ -283,18 +288,23 @@ int VMread(uint64_t virtualAddress, word_t* value){
 
   int addr = 0;
   int tmp_addr = 0;
+
+  int bits_length_start = 0;
+  int bits_length_end = BITS_OF_PT_ADDR - SPAIR_BIT_OF_PT_ADDR;
+
   for(int i = 0; i < DEPTH_OF_PT_TREE-1; i++)
     {
-      int bits_length = BITS_OF_PT_ADDR;
-      if (!i)
-        bits_length -= SPAIR_BIT_OF_PT_ADDR;
 
 //      std::cout << "BITS_OF_PT_ADDR" << BITS_OF_PT_ADDR << "SPAIR_BIT_OF_PT_ADDR" << SPAIR_BIT_OF_PT_ADDR << std::endl;
 //      std::cout << "VIRTUAL_ADDRESS_WIDTH" << VIRTUAL_ADDRESS_WIDTH << "(VIRTUAL_ADDRESS_WIDTH - D_OFFSET)" << (VIRTUAL_ADDRESS_WIDTH - D_OFFSET) << "DEPTH_OF_PT_TREE" << DEPTH_OF_PT_TREE << std::endl;
 //      std::cout << "CEIL((VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / DEPTH_OF_PT_TREE) " << CEIL((double)(VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / DEPTH_OF_PT_TREE) << std::endl;
 
-      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
-      std::cout << "bits_length: " << bits_length << ", at i: " << i << std::endl;
+//      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
+      uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//      std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl;
+      bits_length_start = bits_length_end;
+      bits_length_end += BITS_OF_PT_ADDR;
+//      std::cout << "bits_length: " << bits_length << ", at i: " << i << std::endl;
 
       PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
 
@@ -306,11 +316,12 @@ int VMread(uint64_t virtualAddress, word_t* value){
         addr = tmp_addr;
       }
 
-      std::cout << "in table " << i << ", offset: " << offset << ". we read" << " addr: " << addr << ", depth: " << i << std::endl;
+//      std::cout << "in table " << i << ", offset: " << offset << ". we read" << " addr: " << addr << ", depth: " << i << std::endl;
     }
 
-  uint64_t offset = readBits(virtualAddress, (DEPTH_OF_PT_TREE-1) * BITS_OF_PT_ADDR, (DEPTH_OF_PT_TREE) * BITS_OF_PT_ADDR);
-  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (DEPTH_OF_PT_TREE-1) << std::endl;
+  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//  std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl;
+//  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (DEPTH_OF_PT_TREE-1) << std::endl;
 
   PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
 
@@ -322,11 +333,11 @@ int VMread(uint64_t virtualAddress, word_t* value){
     {
       addr = tmp_addr;
     }
-  std::cout << "in table " << 4 << ", offset: " << offset << ". we read" << " data addr: " << addr << ", depth: " << 4 << std::endl;
+//  std::cout << "in table " << 4 << ", offset: " << offset << ". we read" << " data addr: " << addr << ", depth: " << 4 << std::endl;
 
   uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
   PMread(addr * PAGE_SIZE + d,value);
-  std::cout << "data from: " << addr << ", offset: " << d << ", value: " << *value << ", depth: " << 4 << std::endl;
+//  std::cout << "data from: " << addr << ", offset: " << d << ", value: " << *value << ", depth: " << 4 << std::endl;
 //  std::cout << "full addr: " << addr * PAGE_SIZE + d << std::endl;
   return 1;
 }
