@@ -5,6 +5,7 @@
 #include "VirtualMemory.h"
 #include "PhysicalMemory.h"
 #include "MemoryConstants.h"
+#include <iostream>
 //#include "YaaraTest/YaaraConstants.h"
 
 ///////function declarations/////////
@@ -18,16 +19,20 @@ int D_OFFSET = OFFSET_WIDTH;
 
 int BITS_OF_PT_ADDR = OFFSET_WIDTH;
 int SPAIR_BIT_OF_PT_ADDR = (VIRTUAL_ADDRESS_WIDTH - D_OFFSET) % OFFSET_WIDTH;
+long int frames_array_global[NUM_FRAMES] ; //contains PageIndex in each cell
+int frameType_global[NUM_FRAMES] = {0}; // 0 = initialized (not table and not data), 1 = table, 2 = data
+
+
 
 void VMinitialize(){ // If no PM exist it will creat it in PhysicalMemory
-//  for (int i = 0; i < NUM_FRAMES; ++i)
-//    {
-//      frames_array[i] = -1;
-//      frameType[i] = 0;
-//    }
+  for (int i = 0; i < NUM_FRAMES; ++i)
+    {
+      frames_array_global[i] = -1;
+      frameType_global[i] = 0;
+    }
 
   initialize_frame (0);
-//  frameType[0] = 1;
+  frameType_global[0] = 1;
 }
 
 uint64_t readBits(uint64_t number, uint64_t start, uint64_t end) {
@@ -71,6 +76,35 @@ uint64_t abs_minus_64(uint64_t a,uint64_t b){
   if(a > b )
     return a-b;
   return b-a;
+}
+
+void print_frameType_array (int frameType[]){
+  std::cout << "frameType"  << std::endl;
+
+  for(int i = 0 ; i < NUM_FRAMES ; i++ ){
+      std::cout << frameType[i] << " " ;
+  }
+  std::cout <<std::endl;
+  std::cout << "frameType global"  << std::endl;
+
+  for(int i = 0 ; i < NUM_FRAMES ; i++ ){
+      std::cout << frameType_global[i] << " " ;
+
+    }
+  std::cout <<std::endl<<std::endl;
+}
+void print_frames_array ( long int frames_array[]){
+  std::cout << "frames_array"  << std::endl;
+  for(int i = 0 ; i < NUM_FRAMES ; i++ ){
+      std::cout << frames_array[i] << " " ;
+
+    }
+    std::cout<<std::endl;
+  std::cout << "frames_array global"  << std::endl;
+  for(int i = 0 ; i < NUM_FRAMES ; i++ ){
+      std::cout << frames_array_global[i] << " " ;
+    }
+  std::cout<<std::endl<<std::endl;
 }
 
 uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t virtualAddress,
@@ -122,9 +156,13 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
           PMevict(frame_index, evictedPageIndex);
           remove_hierarchy(frame_index, frameType);
           frames_array[frame_index] = -1;
+          frames_array_global[frame_index] = -1;
+          print_frames_array (frames_array);
         }
       else if(frameType[frame_index] == 1){
           frameType[frame_index] = 0;
+          frameType_global[frame_index] = 0;
+          print_frameType_array (frameType);
         }
     }
 
@@ -137,11 +175,16 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
       // load data page to frame_index
       PMrestore(frame_index, pageAddress);
       frameType[frame_index] = 2;
+      frameType_global[frame_index] = 2;
       frames_array[frame_index] = pageAddress;
-
+      frames_array_global[frame_index] = pageAddress;
+      print_frameType_array (frameType);
+      print_frames_array (frames_array);
     }
   else {
       frameType[frame_index] = 1;
+      frameType_global[frame_index] = 1;
+      print_frameType_array (frameType);
     }
 
 
@@ -183,6 +226,7 @@ uint64_t concatenateBits(uint64_t a, uint64_t b) {
 
 void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, int frameType[], long int frames_array[]) {
 
+  std::cout << "IN RECUTSI"
 //  word_t index_of_data;
 //  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
 //  PMread(pageIndex * PAGE_SIZE + offset ,&index_of_data);
@@ -229,11 +273,14 @@ void build_database(int frameType[], long int frames_array[], uint64_t virtualAd
 
 int VMwrite(uint64_t virtualAddress, word_t value){
 
-  long int frames_array[NUM_FRAMES] = {0} ; //contains PageIndex in each cell
-  int frameType[NUM_FRAMES] = {-1}; // 0 = initialized (not table and not data), 1 = table, 2 = data
+  long int frames_array[NUM_FRAMES] ; //contains PageIndex in each cell
+  int frameType[NUM_FRAMES] = {0}; // 0 = initialized (not table and not data), 1 = table, 2 = data
 
   build_database (frameType, frames_array, virtualAddress);
 
+  std::cout << "finished build arrays VMwrite" << std::endl;
+  print_frameType_array (frameType);
+  print_frames_array (frames_array);
   if (virtualAddress >= VIRTUAL_MEMORY_SIZE) {
       return 0;
     }
@@ -275,8 +322,8 @@ int VMread(uint64_t virtualAddress, word_t* value){
       return 0;
     }
 
-  long int frames_array[NUM_FRAMES] = {0} ; //contains PageIndex in each cell
-  int frameType[NUM_FRAMES] = {-1}; // 0 = initialized (not table and not data), 1 = table, 2 = data
+  long int frames_array[NUM_FRAMES] = {-1} ; //contains PageIndex in each cell
+  int frameType[NUM_FRAMES] = {0}; // 0 = initialized (not table and not data), 1 = table, 2 = data
 
   build_database (frameType, frames_array, virtualAddress);
 
