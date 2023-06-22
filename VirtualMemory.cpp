@@ -193,11 +193,11 @@ void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, in
     return;
 
   if (depth == TABLES_DEPTH) {
-      frameType[pageIndex] = 1;
+      frameType[pageIndex] = 2;
       frames_array[pageIndex] = virtualAddress;
       return;
   }
-  frameType[pageIndex] = 2;
+  frameType[pageIndex] = 1;
   for (int j = 0; j < PAGE_SIZE; j++)
     {
       word_t tmp;
