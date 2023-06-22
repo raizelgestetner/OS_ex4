@@ -360,6 +360,7 @@ TEST(RandomTests, Random_Addresses_Random_Values)
     {
         uint64_t virtAddr = vmAddrDist(eng);
         word_t val = valueDist(eng);
+//        std::cout << "Writing to " << virtAddr << " the value " << i << std::endl;
         ASSERT_EQ(VMwrite(virtAddr, val), 1) << "write should succeed";
         vmToValue[virtAddr] = val;
     }

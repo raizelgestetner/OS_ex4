@@ -23,7 +23,8 @@ int frameType[NUM_FRAMES] = {0}; // 0 = initialized (not table and not data), 1 
 int D_OFFSET = OFFSET_WIDTH;
 
 // TODO: check! BITS_OF_PT_ADDR can be double?!?!
-int BITS_OF_PT_ADDR = CEIL((double)(VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH);
+//int BITS_OF_PT_ADDR = CEIL((double)(VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH);
+int BITS_OF_PT_ADDR = OFFSET_WIDTH;
 int SPAIR_BIT_OF_PT_ADDR = (VIRTUAL_ADDRESS_WIDTH - D_OFFSET) % OFFSET_WIDTH;
 
 void VMinitialize(){ // If no PM exist it will creat it in PhysicalMemory
@@ -89,6 +90,9 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
   uint64_t frame_index;
   uint64_t max_frame_id;
   findEmptyTable(frame_index, max_frame_id, current_addr);
+
+//  std::cout << "frame_index: " << frame_index << std::endl;
+//  std::cout << "max_frame_id: " << max_frame_id << std::endl;
 
   if (frame_index){
 //      std::cout << "1" << std::endl;
@@ -230,8 +234,10 @@ int VMwrite(uint64_t virtualAddress, word_t value){
   int bits_length_start = 0;
   int bits_length_end = BITS_OF_PT_ADDR - SPAIR_BIT_OF_PT_ADDR;
 
-  for(int i = 0; i < TABLES_DEPTH-1; i++)
+  bool isData = false;
+  for(int i = 0; i < TABLES_DEPTH; i++)
     {
+      isData = i==TABLES_DEPTH-1;
 
 //      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
       uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
@@ -242,7 +248,7 @@ int VMwrite(uint64_t virtualAddress, word_t value){
 //      std::cout << "in table " << addr;
       if (!tmp_addr) {
           // load page to ram
-          addr = handlePageLoad(addr, offset, false, virtualAddress);
+          addr = handlePageLoad(addr, offset, isData, virtualAddress);
         }
       else
         {
@@ -252,29 +258,32 @@ int VMwrite(uint64_t virtualAddress, word_t value){
 //      std::cout << ", offset: " << offset << ". we write" << " addr: " << addr << ", depth: " << i << std::endl;
     }
 
-  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
 //  std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl<<std::flush;;
 //  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (TABLES_DEPTH-1) << ", offset: " << offset << std::endl;
-//  uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
-
-  PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
+////  uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
+//
+//  PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
 //  std::cout << "in table " << addr;
-  if (!tmp_addr) {
-      // load page to ram
-      addr = handlePageLoad(addr, offset, true, virtualAddress);
+//  if (!tmp_addr) {
+//      // load page to ram
+//      addr = handlePageLoad(addr, offset, true, virtualAddress);
 //      std::cout << "data find frame addr: " << addr << std::endl;
-    }
-  else
-    {
-      addr = tmp_addr;
-    }
+//    }
+//  else
+//    {
+//      addr = tmp_addr;
+//    }
 //  std::cout << ", offset: " << offset << ". we write" << " data addr: " << addr << ", depth: " << 4 << std::endl;
-
+//
   uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
-
+//
+//  std::cout << "addr :" << addr << std::endl << std::flush;
+//  std::cout << "PAGE_SIZE :" << PAGE_SIZE << std::endl << std::flush;
+//  std::cout << "d :" << d << std::endl <<  std::flush;
   PMwrite(addr * PAGE_SIZE + d ,value);
-
-
+//  std::cout << "222222222" << std::flush;
+//
 //  std::cout << "data to: " << addr << ", offset: " << d << ", value: " << value << ", depth: " << 4 << std::endl;
 
   return 1;
@@ -291,10 +300,10 @@ int VMread(uint64_t virtualAddress, word_t* value){
 
   int bits_length_start = 0;
   int bits_length_end = BITS_OF_PT_ADDR - SPAIR_BIT_OF_PT_ADDR;
-
-  for(int i = 0; i < TABLES_DEPTH-1; i++)
+  bool isData = false;
+  for(int i = 0; i < TABLES_DEPTH; i++)
     {
-
+      isData = i==TABLES_DEPTH-1;
 //      std::cout << "BITS_OF_PT_ADDR" << BITS_OF_PT_ADDR << "SPAIR_BIT_OF_PT_ADDR" << SPAIR_BIT_OF_PT_ADDR << std::endl;
 //      std::cout << "VIRTUAL_ADDRESS_WIDTH" << VIRTUAL_ADDRESS_WIDTH << "(VIRTUAL_ADDRESS_WIDTH - D_OFFSET)" << (VIRTUAL_ADDRESS_WIDTH - D_OFFSET) << "TABLES_DEPTH" << TABLES_DEPTH << std::endl;
 //      std::cout << "CEIL((VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH) " << CEIL((double)(VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH) << std::endl;
@@ -310,7 +319,7 @@ int VMread(uint64_t virtualAddress, word_t* value){
 //      std::cout << "in table " << addr;
       if (!tmp_addr) {
           // load page to ram
-          addr = handlePageLoad(addr, offset, false, virtualAddress);
+          addr = handlePageLoad(addr, offset, isData, virtualAddress);
         }
       else {
         addr = tmp_addr;
@@ -319,20 +328,20 @@ int VMread(uint64_t virtualAddress, word_t* value){
 //      std::cout << ", offset: " << offset << ". we read" << " addr: " << addr << ", depth: " << i << std::endl;
     }
 
-  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
 //  std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl <<std::flush;
-//  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (TABLES_DEPTH-1) << std::endl;
-
-  PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
+////  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (TABLES_DEPTH-1) << std::endl;
+//
+//  PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
 //  std::cout << "in table " << addr;
-  if (!tmp_addr) {
-      // load page to ram
-      addr = handlePageLoad(addr, offset, true, virtualAddress);
-    }
-  else
-    {
-      addr = tmp_addr;
-    }
+//  if (!tmp_addr) {
+//      // load page to ram
+//      addr = handlePageLoad(addr, offset, true, virtualAddress);
+//    }
+//  else
+//    {
+//      addr = tmp_addr;
+//    }
 //  std::cout << ", offset: " << offset << ". we read" << " data addr: " << addr << ", depth: " << 4 << std::endl;
 
   uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
