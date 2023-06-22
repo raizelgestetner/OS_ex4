@@ -2,42 +2,31 @@
 // Created by raize on 13/06/2023.
 //
 
-#include <iostream>
 #include "VirtualMemory.h"
 #include "PhysicalMemory.h"
 #include "MemoryConstants.h"
-//#include "YaaraTest/YaaraConstants.h"
-#include "cmath"
 
 ///////function declarations/////////
 void remove_hierarchy(uint64_t frame_index);
 void initialize_frame(uint64_t frame_idx);
 //////////////////////////////////////
 
-long int frames_array[NUM_FRAMES] ; //contains PageIndex in each cell
-//TODO: check raizel is correct?
-int frameType[NUM_FRAMES] = {0}; // 0 = initialized (not table and not data), 1 = table, 2 = data
-//uint64_t pagesIndexes[NUM_PAGES];
-
-//int D_OFFSET = log2(PAGE_SIZE); // bits of data page offset
+//long int frames_array[NUM_FRAMES] ; //contains PageIndex in each cell
+//int frameType[NUM_FRAMES] = {0}; // 0 = initialized (not table and not data), 1 = table, 2 = data
 int D_OFFSET = OFFSET_WIDTH;
 
-// TODO: check! BITS_OF_PT_ADDR can be double?!?!
-//int BITS_OF_PT_ADDR = CEIL((double)(VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH);
 int BITS_OF_PT_ADDR = OFFSET_WIDTH;
 int SPAIR_BIT_OF_PT_ADDR = (VIRTUAL_ADDRESS_WIDTH - D_OFFSET) % OFFSET_WIDTH;
 
 void VMinitialize(){ // If no PM exist it will creat it in PhysicalMemory
-//  std::cout << "TABLES_DEPTH: " << TABLES_DEPTH << std::endl;
-//  std::cout << "ini!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-  for (int i = 0; i < NUM_FRAMES; ++i)
-    {
-      frames_array[i] = -1;
-      frameType[i] = 0;
-    }
+//  for (int i = 0; i < NUM_FRAMES; ++i)
+//    {
+//      frames_array[i] = -1;
+//      frameType[i] = 0;
+//    }
 
   initialize_frame (0);
-  frameType[0] = 1;
+//  frameType[0] = 1;
 }
 
 uint64_t readBits(uint64_t number, uint64_t start, uint64_t end) {
@@ -50,8 +39,7 @@ uint64_t readBits(uint64_t number, uint64_t start, uint64_t end) {
 
 
 
-//TODO: need reference or actual variable?!
-void findEmptyTable(uint64_t &frame_index, uint64_t &max_frame_id, int current_addr) {
+void findEmptyTable(uint64_t &frame_index, uint64_t &max_frame_id, int current_addr, int *frameType) {
 
   // find free space to load from swap
   frame_index = 0;
@@ -64,7 +52,7 @@ void findEmptyTable(uint64_t &frame_index, uint64_t &max_frame_id, int current_a
           for (int j = 0; j < PAGE_SIZE; j++)
             {
               PMread(i * PAGE_SIZE + j ,&tmp);
-              if(max_frame_id < tmp)
+              if((int)max_frame_id < tmp)
                 max_frame_id = tmp;
               if (tmp && all_rows_empty)
                 all_rows_empty = false;
@@ -84,42 +72,32 @@ uint64_t abs_minus_64(uint64_t a,uint64_t b){
   return b-a;
 }
 
-uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t virtualAddress) {
+uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t virtualAddress,
+                        int* frameType, long int* frames_array) {
   // We want to found new place to write the tables
   // Try to find empty table
   uint64_t frame_index;
   uint64_t max_frame_id;
-  findEmptyTable(frame_index, max_frame_id, current_addr);
-
-//  std::cout << "frame_index: " << frame_index << std::endl;
-//  std::cout << "max_frame_id: " << max_frame_id << std::endl;
+  findEmptyTable(frame_index, max_frame_id, current_addr, frameType);
 
   if (frame_index){
-//      std::cout << "1" << std::endl;
       remove_hierarchy (frame_index);
-  }
+    }
   else if (max_frame_id+1 < NUM_FRAMES) {
-//      std::cout << "2" << std::endl;
       max_frame_id ++;
       frame_index = max_frame_id;
 
 
-//      initialize_frame(frame_index);
     }
   else {
-//      std::cout << "3" << std::endl;
       uint64_t min = 0;
       uint64_t last_min = 0;
 
-      // int page_swaped_in = 0;
       uint64_t page_swapped_in = readBits(virtualAddress, 0, VIRTUAL_ADDRESS_WIDTH - D_OFFSET);
 
-      // find p page to swaped without frame 0
       for (int tmp_frame_idx = 1; tmp_frame_idx < NUM_FRAMES; ++tmp_frame_idx)
         {
-//          std::cout << "frames_array[tmp_frame_idx] at: " << tmp_frame_idx << ", valuse: " << frames_array[tmp_frame_idx] << std::endl;
           if(frames_array[tmp_frame_idx] != -1) // there is a page in that frame
-//          if(frameType[tmp_frame_idx] == 2) // there is a page in that frame
             {
               uint64_t page_idx = frames_array[tmp_frame_idx];
               min = NUM_PAGES - abs_minus_64 (page_swapped_in ,page_idx);
@@ -133,17 +111,7 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
                   last_min = min;
                   frame_index = tmp_frame_idx;
                 }
-//                std::cout << "found page at: " << tmp_frame_idx << std::endl;
             }
-//          else if(frameType[tmp_frame_idx] == 2){
-//            if (!frame_index)
-//              {
-//                std::cout << "frameType[frame_index]" << frameType[tmp_frame_idx] << " of tmp_frame_idx: " << tmp_frame_idx << std::endl;
-//                std::cout << "-1 tmp_frame_idx is: " << tmp_frame_idx << std::endl;
-//                frame_index = tmp_frame_idx;
-//                break;
-//              }
-//          }
         }
 
 
@@ -152,24 +120,11 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
           uint64_t evictedPageIndex = frames_array[frame_index];
           PMevict(frame_index, evictedPageIndex);
           remove_hierarchy(frame_index);
-//          initialize_frame(frame_index);
           frames_array[frame_index] = -1;
-//          std::cout << "frame evicated: " << frame_index << " index" << std::endl;
-
-//          if (!data)
-//            initialize_frame(frame_index);
-      }
+        }
       else if(frameType[frame_index] == 1){
-//          for (int i = 0; i < PAGE_SIZE; ++i)
-//            {
-//              PMwrite(frame_index + i, 0); //  clear every address in frame frame_index
-//            }
-//          initialize_frame(frame_index);
           frameType[frame_index] = 0;
-      }
-//      else {
-//          initialize_frame(frame_index);
-//      }
+        }
     }
 
 
@@ -182,7 +137,6 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
       PMrestore(frame_index, pageAddress);
       frameType[frame_index] = 2;
       frames_array[frame_index] = pageAddress;
-//      std::cout << "save data to " << frame_index << " index, set addres: " << frames_array[frame_index] << std::endl;
 
     }
   else {
@@ -192,7 +146,7 @@ uint64_t handlePageLoad(int current_addr, uint64_t offset, int data, uint64_t vi
 
   if (frameType[frame_index] == 1) {
       initialize_frame(frame_index);
-  }
+    }
   return frame_index;
 }
 
@@ -203,30 +157,74 @@ void initialize_frame(uint64_t frame_idx){
     }
 }
 
-void remove_hierarchy(uint64_t frame_index){
+void remove_hierarchy(uint64_t frame_index, int frameType[]){
   word_t value;
   for (uint64_t i = 0; i < NUM_FRAMES; ++i)
     {
       if(frameType[i] == 1){ // if the frame is a table
           for (uint64_t j = 0; j < PAGE_SIZE; ++j)
             {
-//              std::cout << "remove_hierarchy1" << std::endl <<std::flush;
               PMread (i * PAGE_SIZE + j, &value);
-//              std::cout << "remove_hierarchy2" << std::endl <<std::flush;
-              if(value == frame_index){
+              if(value == (int)frame_index){
                   PMwrite (i * PAGE_SIZE + j, 0);
-              }
+                }
             }
 
-      }
+        }
+    }
+}
+
+void recursive_travel(uint64_t pageIndex, uint64_t virtualAddress, int depth, int* frameType, long int* frames_array) {
+
+//  word_t index_of_data;
+//  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
+//  PMread(pageIndex * PAGE_SIZE + offset ,&index_of_data);
+//  frames_array[index_of_data] = pageIndex;
+
+  if (depth == TABLES_DEPTH-1) {
+      frameType[pageIndex] = 1;
+      frames_array[pageIndex] = virtualAddress;
+      return;
+  }
+  frameType[pageIndex] = 2;
+  for (int j = 0; j < PAGE_SIZE; j++)
+    {
+      word_t tmp;
+      PMread(pageIndex * PAGE_SIZE + j ,&tmp);
+      recursive_travel(tmp, virtualAddress, ++depth, frameType, frames_array);
+    }
+}
+
+void build_database(int* frameType, long int* frames_array, uint64_t virtualAddress) {
+
+  for (int i = 0; i < NUM_FRAMES; ++i)
+    {
+      frames_array[i] = -1;
+      frameType[i] = 0;
+    }
+
+  frameType[0] = 1;
+  frames_array[0] = 0;
+
+  for (int j = 0; j < PAGE_SIZE; j++)
+    {
+      word_t tmp;
+      PMread(j ,&tmp);
+      if (tmp != 0)
+        recursive_travel(tmp, virtualAddress, 1, frameType, frames_array);
     }
 }
 
 int VMwrite(uint64_t virtualAddress, word_t value){
 
+  long int frames_array[NUM_FRAMES] = {0} ; //contains PageIndex in each cell
+  int frameType[NUM_FRAMES] = {-1}; // 0 = initialized (not table and not data), 1 = table, 2 = data
+
+  build_database (frameType, frames_array, virtualAddress);
+
   if (virtualAddress >= VIRTUAL_MEMORY_SIZE) {
       return 0;
-  }
+    }
 
   int addr = 0;
   int tmp_addr = 0;
@@ -239,53 +237,23 @@ int VMwrite(uint64_t virtualAddress, word_t value){
     {
       isData = i==TABLES_DEPTH-1;
 
-//      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
       uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
-//      std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl<<std::flush;;
       bits_length_start = bits_length_end;
       bits_length_end += BITS_OF_PT_ADDR;
       PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
-//      std::cout << "in table " << addr;
       if (!tmp_addr) {
           // load page to ram
-          addr = handlePageLoad(addr, offset, isData, virtualAddress);
+          addr = handlePageLoad(addr, offset, isData, virtualAddress, frameType, frames_array);
         }
       else
         {
           addr = tmp_addr;
         }
 
-//      std::cout << ", offset: " << offset << ". we write" << " addr: " << addr << ", depth: " << i << std::endl;
     }
 
-//  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
-//  std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl<<std::flush;;
-//  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (TABLES_DEPTH-1) << ", offset: " << offset << std::endl;
-////  uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
-//
-//  PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
-//  std::cout << "in table " << addr;
-//  if (!tmp_addr) {
-//      // load page to ram
-//      addr = handlePageLoad(addr, offset, true, virtualAddress);
-//      std::cout << "data find frame addr: " << addr << std::endl;
-//    }
-//  else
-//    {
-//      addr = tmp_addr;
-//    }
-//  std::cout << ", offset: " << offset << ". we write" << " data addr: " << addr << ", depth: " << 4 << std::endl;
-//
   uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
-//
-//  std::cout << "addr :" << addr << std::endl << std::flush;
-//  std::cout << "PAGE_SIZE :" << PAGE_SIZE << std::endl << std::flush;
-//  std::cout << "d :" << d << std::endl <<  std::flush;
   PMwrite(addr * PAGE_SIZE + d ,value);
-//  std::cout << "222222222" << std::flush;
-//
-//  std::cout << "data to: " << addr << ", offset: " << d << ", value: " << value << ", depth: " << 4 << std::endl;
-
   return 1;
 }
 
@@ -295,6 +263,11 @@ int VMread(uint64_t virtualAddress, word_t* value){
       return 0;
     }
 
+  long int frames_array[NUM_FRAMES] = {0} ; //contains PageIndex in each cell
+  int frameType[NUM_FRAMES] = {-1}; // 0 = initialized (not table and not data), 1 = table, 2 = data
+
+  build_database (frameType, frames_array, virtualAddress);
+
   int addr = 0;
   int tmp_addr = 0;
 
@@ -304,51 +277,23 @@ int VMread(uint64_t virtualAddress, word_t* value){
   for(int i = 0; i < TABLES_DEPTH; i++)
     {
       isData = i==TABLES_DEPTH-1;
-//      std::cout << "BITS_OF_PT_ADDR" << BITS_OF_PT_ADDR << "SPAIR_BIT_OF_PT_ADDR" << SPAIR_BIT_OF_PT_ADDR << std::endl;
-//      std::cout << "VIRTUAL_ADDRESS_WIDTH" << VIRTUAL_ADDRESS_WIDTH << "(VIRTUAL_ADDRESS_WIDTH - D_OFFSET)" << (VIRTUAL_ADDRESS_WIDTH - D_OFFSET) << "TABLES_DEPTH" << TABLES_DEPTH << std::endl;
-//      std::cout << "CEIL((VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH) " << CEIL((double)(VIRTUAL_ADDRESS_WIDTH - D_OFFSET) / TABLES_DEPTH) << std::endl;
-//
-//      uint64_t offset = readBits(virtualAddress, i * bits_length, (i+1) * bits_length);
       uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
-//      std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl<<std::flush;;
       bits_length_start = bits_length_end;
       bits_length_end += BITS_OF_PT_ADDR;
-//      std::cout << "bits_length: " << bits_length << ", at i: " << i << std::endl;
 
       PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
-//      std::cout << "in table " << addr;
       if (!tmp_addr) {
           // load page to ram
-          addr = handlePageLoad(addr, offset, isData, virtualAddress);
+          addr = handlePageLoad(addr, offset, isData, virtualAddress, frameType, frames_array);
         }
       else {
-        addr = tmp_addr;
-      }
+          addr = tmp_addr;
+        }
 
-//      std::cout << ", offset: " << offset << ". we read" << " addr: " << addr << ", depth: " << i << std::endl;
     }
-
-//  uint64_t offset = readBits(virtualAddress, bits_length_start, bits_length_end);
-//  std::cout << "bits_length_start: " << bits_length_start << " bits_length_end: " << bits_length_end << ", offset: " << offset << std::endl <<std::flush;
-////  std::cout << "bits_length: " << BITS_OF_PT_ADDR << ", at i: " << (TABLES_DEPTH-1) << std::endl;
-//
-//  PMread(addr * PAGE_SIZE + offset ,&tmp_addr);
-//  std::cout << "in table " << addr;
-//  if (!tmp_addr) {
-//      // load page to ram
-//      addr = handlePageLoad(addr, offset, true, virtualAddress);
-//    }
-//  else
-//    {
-//      addr = tmp_addr;
-//    }
-//  std::cout << ", offset: " << offset << ". we read" << " data addr: " << addr << ", depth: " << 4 << std::endl;
 
   uint64_t d = readBits (virtualAddress, VIRTUAL_ADDRESS_WIDTH - D_OFFSET, VIRTUAL_ADDRESS_WIDTH);
   PMread(addr * PAGE_SIZE + d,value);
-//  std::cout << "data from: " << addr << ", offset: " << d << ", value: " << *value << ", depth: " << 4 << std::endl;
-//  std::cout << "full addr: " << addr * PAGE_SIZE + d << std::endl;
   return 1;
 }
-
 
